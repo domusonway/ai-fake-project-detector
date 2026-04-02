@@ -1,0 +1,25 @@
+Final Wave F3 - Cross-Flow QA Evidence
+
+End-to-end flow evidence already performed:
+
+1. Analyze / reanalyze flow
+- Live analyze API succeeded and created snapshot version `1`.
+- Live reanalyze API succeeded and created snapshot version `2`.
+
+2. Detail flow
+- Live detail API succeeded.
+- Live detail HTML page succeeded after the T12 fix.
+
+3. Rankings flow
+- Live rankings API succeeded.
+- Live rankings HTML page succeeded.
+- Rankings disclosure stayed limited to analyzed repos only.
+
+4. Feedback flow
+- Unauthenticated feedback attempt returned `401`.
+- Authenticated feedback submission succeeded.
+- Rate-limit behavior returned `429` when expected.
+- Duplicate feedback collapsed as designed.
+
+Conclusion:
+- The shipped V1 cross-flow path had already been exercised successfully across analyze, reanalyze, detail, rankings, and feedback before this evidence backfill.

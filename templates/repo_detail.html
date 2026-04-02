@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+{% from "_report_sections.html" import render_report_sections %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository Detail & Score History - AI Fake Project Detector</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f8f9fa; }
+        .container { margin-top: 2rem; margin-bottom: 3rem; }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .score-card { border-radius: 10px; padding: 1.5rem; text-align: center; margin-bottom: 1.5rem; }
+        .score-value { font-size: 3rem; font-weight: bold; margin: 0.5rem 0; }
+        .score-label { font-size: 1.2rem; margin-bottom: 1rem; }
+        .risk-low { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .risk-medium { background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .risk-high { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .risk-extreme { background-color: #f5c6cb; border: 1px solid #f1b0b7; color: #721c24; }
+        .dimension-chart { height: 300px; margin: 2rem 0; }
+        .card { border-radius: 10px; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); }
+        .evidence-card { border-left: 4px solid #0d6efd; padding-left: 1rem; margin-bottom: 1rem; }
+        .guardrail-note { background-color: #e2e3e5; padding: 1rem; border-radius: 5px; margin-bottom: 0.5rem; }
+        .history-item { border-left: 4px solid #6c757d; padding-left: 1rem; margin-bottom: 1rem; }
+        .meta-chip { display: inline-block; margin-right: 0.5rem; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="header">
+            <h1>Repository Detail &amp; Score History</h1>
+            <p class="lead">Latest persisted report plus prior evidence snapshots for {{ data.latest.repo_info.owner }}/{{ data.latest.repo_info.name }}</p>
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+                <a class="btn btn-outline-secondary" href="{{ data.navigation.analyze_url }}">Analyze another repo</a>
+                <a class="btn btn-outline-secondary" href="{{ data.navigation.rankings_url }}">Browse analyzed rankings</a>
+                <a class="btn btn-outline-primary" href="{{ data.latest.repo_info.url }}" target="_blank" rel="noopener noreferrer">Open GitHub repo</a>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h4 class="mb-0">Latest Snapshot</h4>
+                        <span class="badge bg-primary">Snapshot v{{ data.latest.snapshot_version }}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3 text-muted">
+                            Persisted at {{ data.latest.snapshot_at }} · scoring {{ data.latest.scoring_result.version }}
+                        </div>
+                        {{ render_report_sections(data.latest, 'detailDimensionChart') }}
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h4 class="mb-0">Chronological Score History</h4>
+                    </div>
+                    <div class="card-body">
+                        {% for snapshot in data.history %}
+                        <div class="history-item">
+                            <div class="d-flex justify-content-between flex-wrap gap-2">
+                                <h5 class="mb-1">Snapshot v{{ snapshot.snapshot_version }}</h5>
+                                <span class="text-muted">{{ snapshot.snapshot_at }}</span>
+                            </div>
+                            <p class="mb-1"><strong>Score:</strong> {{ "%.1f"|format(snapshot.scoring_result.fake_risk_score) }}/100 ({{ snapshot.scoring_result.risk_level | upper }})</p>
+                            <p class="mb-1"><strong>Risk band:</strong> {{ snapshot.scoring_result.risk_band }}</p>
+                            <p class="mb-1"><strong>Peer summary:</strong> {{ snapshot.scoring_result.peer_baseline_summary }}</p>
+                            <p class="mb-1"><strong>Stored summary:</strong> {{ snapshot.summary }}</p>
+                            {% if snapshot.scoring_result.evidence_cards %}
+                            <p class="mb-0"><strong>Evidence context:</strong> {{ snapshot.scoring_result.evidence_cards[0].title or snapshot.scoring_result.evidence_cards[0].description }}</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h4 class="mb-0">Supplemental Feedback</h4>
+                        <span class="badge bg-secondary">Supplemental only</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Feedback is supplemental only and never rewrites the core risk score or ranking basis.</p>
+                        <div class="mb-3">
+                            <strong>{{ data.feedback.summary.label }}</strong>
+                            <div class="text-muted small">Dedupe window: {{ data.feedback.dedupe_window_minutes }} minutes · rate limit: one submission per {{ data.feedback.rate_limit_seconds }} seconds per authenticated identity on this repo.</div>
+                        </div>
+
+                        {% if data.feedback.recent_activity %}
+                        <div class="mb-4">
+                            <h5 class="h6">Recent supplemental activity</h5>
+                            <ul class="list-group list-group-flush">
+                                {% for item in data.feedback.recent_activity %}
+                                <li class="list-group-item px-0 d-flex justify-content-between flex-wrap gap-2">
+                                    <span><strong>{{ item.vote }}</strong> by {{ item.actor_label }}</span>
+                                    <span class="text-muted small">{{ item.submitted_at }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            <div class="text-muted small mt-2">Stored notes are not rendered publicly in V1 to reduce abuse and over-weighting of anecdotal feedback.</div>
+                        </div>
+                        {% endif %}
+
+                        {% if data.feedback_auth.authenticated %}
+                        <div class="border rounded p-3 bg-light">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                                <div>
+                                    <strong>Signed in as {{ data.feedback_auth.username }}</strong>
+                                    <div class="text-muted small">Submit one lightweight signal at a time. Feedback remains supplemental.</div>
+                                </div>
+                                <form method="POST" action="{{ url_for('logout') }}">
+                                    <input type="hidden" name="next" value="{{ url_for('repo_detail', repo_url=data.repo_url) }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Sign out</button>
+                                </form>
+                            </div>
+                            <form method="POST" action="{{ url_for('submit_feedback') }}" class="row g-3">
+                                <input type="hidden" name="repo_url" value="{{ data.repo_url }}">
+                                <div class="col-md-4">
+                                    <label for="vote" class="form-label">Feedback</label>
+                                    <select class="form-select" id="vote" name="vote" required>
+                                        <option value="support">support</option>
+                                        <option value="disagree">disagree</option>
+                                        <option value="needs_review">needs_review</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <label for="note" class="form-label">Private note (optional, not displayed publicly)</label>
+                                    <input type="text" class="form-control" id="note" name="note" maxlength="280" placeholder="Short context for moderation or future review">
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary">Submit lightweight feedback</button>
+                                </div>
+                            </form>
+                        </div>
+                        {% else %}
+                        <div class="border rounded p-3 bg-light">
+                            <h5 class="h6">Sign in to submit lightweight feedback</h5>
+                            <p class="text-muted">Use a simple local V1 identity. Anonymous feedback is not enabled.</p>
+                            <form method="POST" action="{{ url_for('login') }}" class="row g-3 align-items-end">
+                                <input type="hidden" name="next" value="{{ url_for('repo_detail', repo_url=data.repo_url) }}">
+                                <div class="col-md-8">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" name="username" minlength="3" maxlength="32" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="submit" class="btn btn-outline-primary w-100">Sign in</button>
+                                </div>
+                            </form>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('detailDimensionChart').getContext('2d');
+        const dimensionChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Delivery (30)', 'Substance (20)', 'Evidence (15)', 'Peer Gap (15)', 'Community (10)', 'Hype Gap (10)'],
+                datasets: [{
+                    label: 'Score',
+                    data: [
+                        {{ data.latest.scoring_result.dimension_scores.delivery }},
+                        {{ data.latest.scoring_result.dimension_scores.substance }},
+                        {{ data.latest.scoring_result.dimension_scores.evidence }},
+                        {{ data.latest.scoring_result.dimension_scores.peer_gap }},
+                        {{ data.latest.scoring_result.dimension_scores.community }},
+                        {{ data.latest.scoring_result.dimension_scores.hype_gap }}
+                    ],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 206, 86, 0.6)',
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(153, 102, 255, 0.6)',
+                        'rgba(255, 159, 64, 0.6)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, max: 30 }
+                }
+            }
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

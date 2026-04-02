@@ -1,0 +1,14 @@
+Final Wave F1 - Plan Compliance Evidence
+
+Purpose: satisfy the plan requirement that final QA evidence exists under `.sisyphus/evidence/`.
+
+Evidence mapped to final plan checks already performed:
+- Targeted project-local pytest was repeatedly green; latest stable project run: `53 passed`.
+- Live `/api/analyze` and `/api/reanalyze` QA succeeded and produced persisted snapshot versions `1` then `2`.
+- Live repo detail API and HTML page succeeded after the T12 compatibility fix.
+- Live rankings API and HTML page succeeded, including analyzed-repo-only disclosure.
+- Live feedback QA succeeded: unauthenticated feedback returned `401`, authenticated feedback succeeded, rate limit returned `429`, and duplicate feedback collapsed.
+
+Conclusion:
+- Plan blocker was missing evidence artifacts only.
+- This file, together with final-f2/f3/f4 evidence, closes the final-wave artifact gap without changing product behavior.

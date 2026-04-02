@@ -1,0 +1,10 @@
+Final Wave F2 - Quality Evidence
+
+Quality signals already verified:
+- Project-local pytest remained stable with a latest repeated green run of `53 passed`.
+- The results-page Chart.js regression was fixed by replacing removed `horizontalBar` usage with `type: 'bar'` plus `indexAxis: 'y'`.
+- After that fix, live detail API + HTML QA succeeded.
+- Rankings API + HTML QA also succeeded after the integrated surface fixes.
+
+Conclusion:
+- Final-wave quality review has concrete evidence for both regression coverage (`53 passed`) and the specific UI/runtime fix that previously blocked F2.

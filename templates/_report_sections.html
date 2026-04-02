@@ -1,0 +1,161 @@
+{% macro _scoring(report) -%}
+    {%- if report.scoring_result is defined -%}
+        {{- report.scoring_result -}}
+    {%- else -%}
+        {{- report -}}
+    {%- endif -%}
+{%- endmacro %}
+
+{% macro render_score_card(report) %}
+{% set scoring = report.scoring_result if report.scoring_result is defined else report %}
+<div class="score-card risk-{{ scoring.risk_level }}">
+    <h3>Fake Risk Score</h3>
+    <div class="score-value">{{ "%.1f"|format(scoring.fake_risk_score) }}/100</div>
+    <div class="score-label">{{ scoring.risk_level | upper }}</div>
+    {% if scoring.risk_band is defined %}
+    <div class="text-muted small">Risk band: {{ scoring.risk_band }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro render_repo_metadata(report) %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>Repository Information</h4>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Repository:</strong> {{ report.repo_info.owner }}/{{ report.repo_info.name }}</p>
+                <p><strong>Description:</strong> {{ report.repo_info.description or 'No description provided.' }}</p>
+                <p><strong>Language:</strong> {{ report.repo_info.language or 'Unknown' }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Stars:</strong> {{ report.repo_info.stars }}</p>
+                <p><strong>Forks:</strong> {{ report.repo_info.forks }}</p>
+                <p><strong>Size:</strong> {{ report.repo_info.size_kb }} KB</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_peer_disclaimer(report) %}
+{% set scoring = report.scoring_result if report.scoring_result is defined else report %}
+{% set peer_meta = scoring.peer_baseline_meta if scoring.peer_baseline_meta is defined else {} %}
+{% set retrieval_meta = report.peer_retrieval.retrieval_metadata if report.peer_retrieval is defined and report.peer_retrieval.retrieval_metadata is defined else {} %}
+{% set disclosure = peer_meta.disclosure or retrieval_meta.disclosure %}
+{% set sample_size = peer_meta.sample_size if peer_meta.sample_size is defined else retrieval_meta.sample_size %}
+{% set confidence = peer_meta.confidence if peer_meta.confidence is defined else retrieval_meta.confidence %}
+{% set sparse_peer = peer_meta.sparse_peer if peer_meta.sparse_peer is defined else retrieval_meta.sparse_peer %}
+{% set low_confidence_peer = peer_meta.low_confidence_peer if peer_meta.low_confidence_peer is defined else retrieval_meta.low_confidence_peer %}
+{% if disclosure or sparse_peer or low_confidence_peer %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>Peer comparison disclaimer</h4>
+    </div>
+    <div class="card-body">
+        {% if disclosure %}
+        <div class="alert alert-warning" role="alert">{{ disclosure }}</div>
+        {% endif %}
+        <div class="mb-0">
+            {% if sample_size is defined and sample_size != none %}
+            <span class="badge bg-secondary meta-chip">sample_size={{ sample_size }}</span>
+            {% endif %}
+            {% if confidence %}
+            <span class="badge bg-secondary meta-chip">confidence={{ confidence }}</span>
+            {% endif %}
+            {% if sparse_peer %}
+            <span class="badge bg-warning text-dark meta-chip">sparse peer baseline</span>
+            {% endif %}
+            {% if low_confidence_peer %}
+            <span class="badge bg-warning text-dark meta-chip">low-confidence peer comparison</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro render_dimension_chart(chart_id='dimensionChart') %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>Dimension Scores</h4>
+    </div>
+    <div class="card-body">
+        <canvas id="{{ chart_id }}" class="dimension-chart"></canvas>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_evidence_cards(report) %}
+{% set scoring = report.scoring_result if report.scoring_result is defined else report %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>Evidence Cards</h4>
+    </div>
+    <div class="card-body">
+        {% for evidence in scoring.evidence_cards %}
+        <div class="evidence-card">
+            <h5>{{ evidence.title or evidence.description or evidence.type }}</h5>
+            {% if evidence.value is defined %}
+            <p><strong>Value:</strong> {{ evidence.value }}</p>
+            {% endif %}
+            {% if evidence.threshold is defined %}
+            <p><strong>Threshold:</strong> {{ evidence.threshold }}</p>
+            {% endif %}
+            {% if evidence.risk_signal is defined %}
+            <p><strong>Risk Signal:</strong> {{ evidence.risk_signal }}</p>
+            {% endif %}
+            {% if evidence.passed is defined %}
+            <p><strong>Status:</strong>
+                {% if evidence.passed %}
+                    <span class="text-success">✅ Passed</span>
+                {% else %}
+                    <span class="text-danger">❌ Failed</span>
+                {% endif %}
+            </p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_guardrail_notes(report) %}
+{% set scoring = report.scoring_result if report.scoring_result is defined else report %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>Important Notes</h4>
+    </div>
+    <div class="card-body">
+        {% for note in scoring.guardrail_notes %}
+        <div class="guardrail-note">
+            {{ note }}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_baseline_summary(report) %}
+{% set scoring = report.scoring_result if report.scoring_result is defined else report %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>Baseline Comparison</h4>
+    </div>
+    <div class="card-body">
+        <p class="mb-0">{{ scoring.peer_baseline_summary }}</p>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_report_sections(report, chart_id='dimensionChart') %}
+{{ render_score_card(report) }}
+{{ render_repo_metadata(report) }}
+{{ render_peer_disclaimer(report) }}
+{{ render_dimension_chart(chart_id) }}
+{{ render_evidence_cards(report) }}
+{{ render_guardrail_notes(report) }}
+{{ render_baseline_summary(report) }}
+{% endmacro %}

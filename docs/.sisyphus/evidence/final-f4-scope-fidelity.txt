@@ -1,0 +1,11 @@
+Final Wave F4 - Scope Fidelity Evidence
+
+Evidence supporting already-approved scope fidelity:
+- Rankings behavior was verified with analyzed-repo-only disclosure, matching the V1 guardrail against a universal all-GitHub leaderboard.
+- Feedback behavior was verified as controlled and lightweight: unauthenticated requests returned `401`, authenticated feedback succeeded, rate limiting returned `429`, and duplicate feedback collapsed.
+- Analyze/reanalyze produced versioned snapshots (`1` then `2`), aligning with the persisted-report/history contract for V1.
+- The results-page chart issue was fixed surgically (`horizontalBar` -> `bar` + `indexAxis: 'y'`) without widening scope.
+- Repeated local pytest evidence remained green (`53 passed`), supporting that this final-wave closeout is artifact completion rather than behavior change.
+
+Conclusion:
+- Final-wave evidence supports the already-approved substance of F4 while keeping scope unchanged.
