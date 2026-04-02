@@ -1,8 +1,8 @@
 # ai fake project detector .gitignore
 
 # Python
-__pycache__/
-.pytest_cache/
+__pycache__
+.pytest_cache
 *.pyc
 *.pyo
 *.pyd
